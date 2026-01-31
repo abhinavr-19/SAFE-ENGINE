@@ -7,10 +7,10 @@
         Title="SafeDesk - Secure Session" Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
         Background="#1E1E1E" Foreground="White"
-        AllowDrop="True" Drop="Window_Drop">
+        AllowDrop="True" Drop="Window_Drop"
+        MouseMove="Window_MouseMove" KeyDown="Window_KeyDown" Closing="Window_Closing">
     
     <Window.Resources>
-        <!-- Styles (Previously Defined + New ones) -->
         <Style TargetType="Button">
             <Setter Property="Background" Value="#2D2D30"/>
             <Setter Property="Foreground" Value="White"/>
@@ -40,13 +40,11 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <Style TargetType="ListView">
+         <Style TargetType="ListView">
             <Setter Property="Background" Value="#252526"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="White"/>
         </Style>
-        
         <Style TargetType="GridViewColumnHeader">
             <Setter Property="Background" Value="#2D2D30"/>
             <Setter Property="Foreground" Value="#CCC"/>
@@ -59,7 +57,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Header -->
             <RowDefinition Height="Auto"/> <!-- Session Info -->
-            <RowDefinition Height="*"/>    <!-- File List -->
+            <RowDefinition Height="*"/>    <!-- File List & Logs -->
             <RowDefinition Height="Auto"/> <!-- Footer -->
         </Grid.RowDefinitions>
 
@@ -95,54 +93,85 @@
 
             <!-- Timer & ID -->
             <StackPanel Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Right">
-                <TextBlock x:Name="TxtTimer" Text="00:00" FontSize="32" FontWeight="Bold" Foreground="#444" HorizontalAlignment="Right" FontFamily="Consolas, Courier New, monospace"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <TextBlock Text="Auto-End in: " Foreground="#888" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBlock x:Name="TxtInactivityTimer" Text="10:00" FontSize="32" FontWeight="Bold" Foreground="#444" FontFamily="Consolas, Courier New, monospace"/>
+                </StackPanel>
                 <TextBlock x:Name="TxtSessionId" Text="ID: -" FontSize="11" Foreground="#555" HorizontalAlignment="Right"/>
             </StackPanel>
         </Grid>
 
-        <!-- Main Workspace (Files) -->
-        <Grid Grid.Row="2" Background="#1E1E1E">
-            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="4" Background="#252526" ClipToBounds="True">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/> <!-- Toolbar -->
-                        <RowDefinition Height="*"/>    <!-- List -->
-                    </Grid.RowDefinitions>
+        <!-- Main Workspace (Tab Control for Logs) -->
+        <TabControl Grid.Row="2" Background="Transparent" BorderThickness="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="TabItem">
+                                <Border x:Name="Border" Padding="12,6" BorderThickness="0,0,0,2" BorderBrush="Transparent" Background="Transparent" Margin="0,0,5,0">
+                                    <ContentPresenter ContentSource="Header" TextElement.Foreground="#888" TextElement.FontSize="14" TextElement.FontWeight="SemiBold"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Border" Property="BorderBrush" Value="#007ACC"/>
+                                        <Setter TargetName="Border" Property="TextElement.Foreground" Value="#FFF"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </TabControl.Resources>
 
-                    <!-- File Toolbar -->
-                    <Border Background="#2D2D30" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="10">
-                        <DockPanel>
-                            <TextBlock Text="SECURE SESSION FILES" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
-                            <Button x:Name="BtnImportFile" Content="+ Import File" Click="BtnImportFile_Click" HorizontalAlignment="Right" Width="120" FontSize="12" Padding="8,4" IsEnabled="False"/>
-                        </DockPanel>
+            <TabItem Header="Workspace Files">
+                <Grid Background="#1E1E1E" Margin="0,10,0,0">
+                    <Border BorderBrush="#333" BorderThickness="1" CornerRadius="4" Background="#252526" ClipToBounds="True">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/> 
+                                <RowDefinition Height="*"/>    
+                            </Grid.RowDefinitions>
+
+                            <!-- Files Toolbar -->
+                            <Border Background="#2D2D30" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="10">
+                                <DockPanel>
+                                    <TextBlock Text="ACTIVE SESSION FILES" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnImportFile" Content="+ Import File" Click="BtnImportFile_Click" HorizontalAlignment="Right" Width="120" FontSize="12" Padding="8,4" IsEnabled="False"/>
+                                </DockPanel>
+                            </Border>
+
+                            <ListView x:Name="FileList" Grid.Row="1" Foreground="#DDD" FontSize="14" Padding="5">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="File Name" Width="400" DisplayMemberBinding="{Binding FileName}"/>
+                                        <GridViewColumn Header="Size (Bytes)" Width="150" DisplayMemberBinding="{Binding SizeBytes}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                             <!-- Drag Drop Overlay -->
+                             <Border x:Name="DragDropOverlay" Grid.Row="1" Background="#DD1E1E1E" Visibility="Collapsed" IsHitTestVisible="False">
+                                <TextBlock Text="Drop Files Here" FontSize="24" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                             <!-- Empty State -->
+                            <TextBlock x:Name="EmptyStateText" Grid.Row="1" Text="Start a session to import files" Foreground="#444" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
+                        </Grid>
                     </Border>
-
-                    <!-- File List -->
-                    <ListView x:Name="FileList" Grid.Row="1" Foreground="#DDD" FontSize="14" Padding="5">
-                        <ListView.View>
-                            <GridView>
-                                <GridViewColumn Header="File Name" Width="400" DisplayMemberBinding="{Binding FileName}"/>
-                                <GridViewColumn Header="Size (Bytes)" Width="150" DisplayMemberBinding="{Binding SizeBytes}"/>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-
-                    <!-- Drag & Drop Overlay (Visible when session active) -->
-                    <Border x:Name="DragDropOverlay" Grid.Row="1" Background="#111E1E1E" Visibility="Collapsed" IsHitTestVisible="False">
-                        <TextBlock Text="Drop Files Here" FontSize="24" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    
-                     <!-- Empty State -->
-                    <TextBlock x:Name="EmptyStateText" Grid.Row="1" Text="Start a session to import files" Foreground="#444" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
                 </Grid>
-            </Border>
-        </Grid>
+            </TabItem>
+            
+            <TabItem Header="Security Audit Logs">
+                 <Grid Background="#1E1E1E" Margin="0,10,0,0">
+                    <TextBox x:Name="TxtAuditLogs" Background="#111" Foreground="#0F0" FontFamily="Consolas" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Padding="10" BorderThickness="1" BorderBrush="#333"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
 
         <!-- Footer -->
         <StatusBar Grid.Row="3" Background="Transparent" Foreground="#555" Margin="0,10,0,0" Padding="0">
-            <StatusBarItem Content="SafeDesk v0.1.0"/>
+            <StatusBarItem Content="SafeDesk v0.2.0"/>
             <StatusBarItem Content="|"/>
-            <StatusBarItem Content="Zero-Trust Architecture"/>
+            <StatusBarItem Content="Phase 2: Zero-Trust Lifecycle"/>
             <StatusBarItem Content="|" Margin="5,0"/>
             <StatusBarItem x:Name="StatusMessage" Content="Ready"/>
         </StatusBar>

@@ -1,55 +1,70 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Timers;
 
 namespace SafeDesk.Core;
-
-public class Session
-{
-    public Guid Id { get; private set; }
-    public string FolderPath { get; private set; }
-    public DateTime StartTime { get; private set; }
-    public bool IsActive { get; private set; }
-    // We only expose metadata to the UI, not full paths that can be manipulated easily
-    public List<SafeFile> CurrentFiles { get; private set; }
-
-    public Session(Guid id, string folderPath)
-    {
-        Id = id;
-        FolderPath = folderPath;
-        StartTime = DateTime.Now;
-        IsActive = true;
-        CurrentFiles = new List<SafeFile>();
-    }
-
-    public void End()
-    {
-        IsActive = false;
-    }
-
-    public void AddFile(SafeFile file)
-    {
-        CurrentFiles.Add(file);
-    }
-}
-
-public class SafeFile
-{
-    public string FileName { get; set; } = string.Empty;
-    public long SizeBytes { get; set; }
-    // Internal path for Core use only
-    internal string InternalPath { get; set; } = string.Empty;
-}
 
 public class SessionManager
 {
     private Session? _currentSession;
     private const string BaseSessionDir = @"C:\SafeDesk\sessions";
+    private readonly System.Timers.Timer _lifecycleTimer;
+    private const int InactivityLimitMinutes = 10;
+    
+    // Events for UI
+    public event Action<SessionState>? StateChanged;
+    public event Action<string>? LogUpdated;
+    public event Action<TimeSpan>? TimeRemainingChanged;
 
     public Session? CurrentSession => _currentSession;
 
+    public SessionManager()
+    {
+        // 1. Ensure env is safe
+        CoreInitializer.InitializeSystem();
+
+        // 2. Crash Recovery: Scan for orphans immediately
+        CheckForOrphanSessions();
+
+        // 3. Setup Lifecycle Timer (runs every second to check inactivity)
+        _lifecycleTimer = new System.Timers.Timer(1000);
+        _lifecycleTimer.Elapsed += LifecycleTimer_Elapsed;
+        _lifecycleTimer.Start();
+    }
+
+    /// <summary>
+    /// Phase 2 Recovery: Scans the session folder for any left-over data from crashes.
+    /// </summary>
+    private void CheckForOrphanSessions()
+    {
+        try
+        {
+            if (!Directory.Exists(BaseSessionDir)) return;
+
+            var subDirs = Directory.GetDirectories(BaseSessionDir);
+            foreach (var dir in subDirs)
+            {
+                // In Phase 2, ANY folder here at startup is an orphan.
+                string dirName = new DirectoryInfo(dir).Name;
+                AuditLogger.Log($"CRITICAL: Orphan session found: {dirName}");
+                
+                PerformCleanup(dir);
+                
+                AuditLogger.Log($"Recovered and wiped orphan session {dirName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            AuditLogger.Log($"Start Recovery Failed: {ex.Message}");
+        }
+    }
+
     public Session StartNewSession()
     {
-        if (_currentSession != null && _currentSession.IsActive)
+        if (_currentSession != null && _currentSession.State == SessionState.Active)
         {
             throw new InvalidOperationException("A session is already active.");
         }
@@ -57,55 +72,111 @@ public class SessionManager
         Guid sessionId = Guid.NewGuid();
         string sessionPath = Path.Combine(BaseSessionDir, sessionId.ToString());
 
-        // 1. Create Directory
         DirectoryInfo dirInfo = Directory.CreateDirectory(sessionPath);
-
-        // 2. Apply NTFS Security (Zero-Trust)
         ApplySecureAcl(dirInfo);
 
         _currentSession = new Session(sessionId, sessionPath);
+        
+        AuditLogger.Log($"Session {sessionId} STARTED.");
+        NotifyStateChange();
+        
         return _currentSession;
     }
 
-    public void EndSession()
+    public void NotifyUserInteraction()
     {
-        if (_currentSession == null) return;
-        _currentSession.End();
-        // Setup for next session, but keep _currentSession for display until new one starts or app closes
+        if (_currentSession != null && _currentSession.State == SessionState.Active)
+        {
+            _currentSession.RefreshActivity();
+        }
+    }
+
+    private void LifecycleTimer_Elapsed(object? sender, ElapsedEventArgs e)
+    {
+        if (_currentSession == null || _currentSession.State != SessionState.Active) return;
+
+        var elapsed = DateTime.Now - _currentSession.LastActivity;
+        var remaining = TimeSpan.FromMinutes(InactivityLimitMinutes) - elapsed;
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            // TIMEOUT
+             _lifecycleTimer.Stop(); // Stop timer to prevent re-entry
+             // We need to run this on a thread safe way if modifying state,
+             // but since we are in Core, we just change state. 
+             // UI needs to marshal to UI thread.
+             EndSession(SessionEndReason.InactivityTimeout);
+             _lifecycleTimer.Start();
+        }
+        else
+        {
+            TimeRemainingChanged?.Invoke(remaining);
+        }
+    }
+
+    public void EndSession(SessionEndReason reason)
+    {
+        if (_currentSession == null || _currentSession.State == SessionState.Ended) return;
+
+        AuditLogger.Log($"Session {_currentSession.Id} ENDING. Reason: {reason}");
+
+        _currentSession.MarkEnded();
+        
+        // CLEANUP
+        PerformCleanup(_currentSession.FolderPath);
+
+        AuditLogger.Log($"Session {_currentSession.Id} TERMINATED & CLEARED.");
+        NotifyStateChange();
+    }
+
+    private void PerformCleanup(string folderPath)
+    {
+        try
+        {
+            if (Directory.Exists(folderPath))
+            {
+                // In Phase 3, we will call WipeEngine here.
+                // In Phase 2, we do a strictly enforced recursive delete.
+                Directory.Delete(folderPath, recursive: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            AuditLogger.Log($"Cleanup Error for {folderPath}: {ex.Message}");
+            // In a real scenario, we might retry or quarantine. 
+        }
     }
 
     public SafeFile ImportFile(string sourceFilePath)
     {
-        if (_currentSession == null || !_currentSession.IsActive)
+        if (_currentSession == null || _currentSession.State != SessionState.Active)
         {
             throw new InvalidOperationException("No active session.");
         }
 
-        if (!File.Exists(sourceFilePath))
-        {
-            throw new FileNotFoundException("Source file not found.", sourceFilePath);
-        }
-
+        // Notify activity
+        _currentSession.RefreshActivity();
+        
+        // ... (Logic from Phase 1, kept concise here)
         string fileName = Path.GetFileName(sourceFilePath);
         string destPath = Path.Combine(_currentSession.FolderPath, fileName);
-
-        // Prevent overwriting or path traversal
+        
         if (File.Exists(destPath))
         {
-            // Simple unique naming strategy
-            string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
-            string ext = Path.GetExtension(fileName);
-            destPath = Path.Combine(_currentSession.FolderPath, $"{nameWithoutExt}_{Guid.NewGuid().ToString().Substring(0, 4)}{ext}");
+             string nameWithoutExt = Path.GetFileNameWithoutExtension(fileName);
+             string ext = Path.GetExtension(fileName);
+             destPath = Path.Combine(_currentSession.FolderPath, $"{nameWithoutExt}_{Guid.NewGuid().ToString().Substring(0, 4)}{ext}");
         }
 
-        // COPY the file (Isolating customer data)
         File.Copy(sourceFilePath, destPath);
 
-        var fileInfo = new FileInfo(destPath);
+        // Audit Import
+        AuditLogger.Log($"File Imported: {Path.GetFileName(destPath)} (Size: {new FileInfo(destPath).Length} bytes)");
+
         var safeFile = new SafeFile
         {
-            FileName = fileInfo.Name,
-            SizeBytes = fileInfo.Length,
+            FileName = Path.GetFileName(destPath),
+            SizeBytes = new FileInfo(destPath).Length,
             InternalPath = destPath
         };
 
@@ -118,38 +189,31 @@ public class SessionManager
         return _currentSession?.CurrentFiles ?? new List<SafeFile>();
     }
 
+    // Pass-through for UI to see logs
+    public string GetAuditLogs() => AuditLogger.GetLogs();
+
+    private void NotifyStateChange()
+    {
+        StateChanged?.Invoke(_currentSession?.State ?? SessionState.Inactive);
+        LogUpdated?.Invoke(AuditLogger.GetLogs());
+    }
+
     private void ApplySecureAcl(DirectoryInfo dirInfo)
     {
-        try
+        // ... (Same Phase 1 Logic)
+         try
         {
             DirectorySecurity security = dirInfo.GetAccessControl();
-
-            // Disable inheritance, remove all inherited rules
             security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
-
-            // Add Rule: Current User (Full Control) - needed for the app running as user
             var currentUser = WindowsIdentity.GetCurrent().Name;
-            security.AddAccessRule(new FileSystemAccessRule(
-                currentUser,
-                FileSystemRights.FullControl,
-                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-                PropagationFlags.None,
-                AccessControlType.Allow));
-
-            // Add Rule: System (Full Control) - for OS operations
-            security.AddAccessRule(new FileSystemAccessRule(
-                new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null),
-                FileSystemRights.FullControl,
-                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-                PropagationFlags.None,
-                AccessControlType.Allow));
-
+            security.AddAccessRule(new FileSystemAccessRule(currentUser, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+            security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
             dirInfo.SetAccessControl(security);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"ACL Error: {ex.Message}");
-            throw new Exception("Failed to secure session directory. Security policy enforcement failed.", ex);
+            throw new Exception("Failed to secure session directory.", ex);
         }
     }
 }

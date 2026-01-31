@@ -1,9 +1,10 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Threading;
 using Microsoft.Win32;
 using SafeDesk.Core;
 
@@ -12,63 +13,80 @@ namespace SafeDesk.UI;
 public partial class MainWindow : Window
 {
     private readonly SessionManager _sessionManager;
-    private DispatcherTimer _timer;
-    private DateTime _sessionStartTime;
     private ObservableCollection<SafeFile> _files;
 
     public MainWindow()
     {
         InitializeComponent();
+        
+        // 1. Initialize Core
         _sessionManager = new SessionManager();
+        
+        // 2. Setup Data Binding
         _files = new ObservableCollection<SafeFile>();
         FileList.ItemsSource = _files;
 
-        // Init Timer
-        _timer = new DispatcherTimer();
-        _timer.Interval = TimeSpan.FromSeconds(1);
-        _timer.Tick += Timer_Tick;
+        // 3. Subscribe to Core Events
+        _sessionManager.StateChanged += OnSessionStateChanged;
+        _sessionManager.TimeRemainingChanged += OnTimeRemainingChanged;
+        _sessionManager.LogUpdated += OnLogUpdated;
 
-        UpdateUIState(false);
+        // 4. Initial State
+        RefreshLogs();
+        UpdateUIState(SessionState.Inactive);
     }
 
-    private void Timer_Tick(object? sender, EventArgs e)
+    // --- Event Handlers (Cross-Thread Marshaling) ---
+
+    private void OnSessionStateChanged(SessionState newState)
     {
-        var elapsed = DateTime.Now - _sessionStartTime;
-        TxtTimer.Text = elapsed.ToString(@"mm\:ss");
+        Dispatcher.Invoke(() => UpdateUIState(newState));
     }
+
+    private void OnTimeRemainingChanged(TimeSpan remaining)
+    {
+        Dispatcher.Invoke(() => 
+        {
+            TxtInactivityTimer.Text = remaining.ToString(@"mm\:ss");
+            if (remaining.TotalMinutes < 1) 
+            {
+                TxtInactivityTimer.Foreground = new SolidColorBrush(Colors.Red);
+            }
+            else
+            {
+                TxtInactivityTimer.Foreground = new SolidColorBrush(Colors.White);
+            }
+        });
+    }
+
+    private void OnLogUpdated(string logs)
+    {
+        Dispatcher.Invoke(() => TxtAuditLogs.Text = logs);
+    }
+
+
+    // --- UI Interactions ---
 
     private void BtnStartSession_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             var session = _sessionManager.StartNewSession();
-            
-            _sessionStartTime = session.StartTime;
-            _timer.Start();
-
             TxtSessionId.Text = $"ID: {session.Id}";
             StatusMessage.Content = $"Session Active at {session.FolderPath}";
-            
-            UpdateUIState(true);
-            RefreshFileList();
+            // State update handled by event
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error starting session: {ex.Message}", "Full Security Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"Error starting session: {ex.Message}", "Security Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
     private void BtnEndSession_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show("Are you sure you want to end the session? The workspace will be locked.", "Confirm", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+        if (MessageBox.Show("Are you sure you want to end the session? All files will be wiped.", "Confirm End Session", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
         {
-            _sessionManager.EndSession();
-            _timer.Stop();
-            UpdateUIState(false);
-            _files.Clear();
-            StatusMessage.Content = "Session Ended";
-            TxtTimer.Text = "00:00";
-            TxtSessionId.Text = "ID: -";
+            _sessionManager.EndSession(SessionEndReason.UserRequest);
         }
     }
 
@@ -77,7 +95,7 @@ public partial class MainWindow : Window
         var openFileDialog = new OpenFileDialog
         {
             Title = "Secure Import - Select File",
-            Multiselect = true, // Allow multiple files
+            Multiselect = true,
             CheckFileExists = true
         };
 
@@ -89,7 +107,7 @@ public partial class MainWindow : Window
 
     private void Window_Drop(object sender, DragEventArgs e)
     {
-        if (_sessionManager.CurrentSession == null || !_sessionManager.CurrentSession.IsActive)
+        if (_sessionManager == null || _sessionManager.CurrentSession == null || _sessionManager.CurrentSession.State != SessionState.Active)
             return;
 
         if (e.Data.GetDataPresent(DataFormats.FileDrop))
@@ -99,27 +117,43 @@ public partial class MainWindow : Window
         }
     }
 
+    // Inactivity Detection Hooks
+    private void Window_MouseMove(object sender, MouseEventArgs e)
+    {
+        _sessionManager.NotifyUserInteraction();
+    }
+
+    private void Window_KeyDown(object sender, KeyEventArgs e)
+    {
+        _sessionManager.NotifyUserInteraction();
+    }
+
+    private void Window_Closing(object sender, CancelEventArgs e)
+    {
+        // Enforce cleanup on app exit
+        if (_sessionManager.CurrentSession != null && _sessionManager.CurrentSession.State == SessionState.Active)
+        {
+             _sessionManager.EndSession(SessionEndReason.AppExit);
+        }
+    }
+
+
+    // --- Helper Logic ---
+
     private void ImportFiles(string[] filePaths)
     {
-        int successCount = 0;
         foreach (var path in filePaths)
         {
             try
             {
-                // UI STRICTLY delegates to Core
                 _sessionManager.ImportFile(path);
-                successCount++;
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to import {System.IO.Path.GetFileName(path)}: {ex.Message}", "Security Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"Failed to import {System.IO.Path.GetFileName(path)}: {ex.Message}", "Security Error");
             }
         }
-        
-        if (successCount > 0)
-        {
-            RefreshFileList();
-        }
+        RefreshFileList();
     }
 
     private void RefreshFileList()
@@ -131,23 +165,49 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateUIState(bool isSessionActive)
+    private void RefreshLogs()
     {
+        TxtAuditLogs.Text = _sessionManager.GetAuditLogs();
+        TxtAuditLogs.ScrollToEnd();
+    }
+
+    private void UpdateUIState(SessionState state)
+    {
+        bool isActive = state == SessionState.Active;
+
         // Buttons
-        BtnStartSession.IsEnabled = !isSessionActive;
-        BtnEndSession.IsEnabled = isSessionActive;
-        BtnImportFile.IsEnabled = isSessionActive;
+        BtnStartSession.IsEnabled = !isActive;
+        BtnEndSession.IsEnabled = isActive;
+        BtnImportFile.IsEnabled = isActive;
 
-        // Visuals
-        StatusIndicator.Background = isSessionActive ? new SolidColorBrush(Color.FromRgb(76, 199, 30)) : new SolidColorBrush(Color.FromRgb(80, 80, 80));
-        StatusText.Text = isSessionActive ? "System Active - Secured" : "Idle";
-        StatusText.Foreground = isSessionActive ? new SolidColorBrush(Colors.LightGreen) : new SolidColorBrush(Colors.Gray);
-        
-        TxtTimer.Foreground = isSessionActive ? new SolidColorBrush(Colors.White) : new SolidColorBrush(Color.FromRgb(60,60,60));
+        if (isActive)
+        {
+            // Active
+            StatusIndicator.Background = new SolidColorBrush(Color.FromRgb(76, 199, 30)); // Green
+            StatusText.Text = "System Active - Secured";
+            StatusText.Foreground = new SolidColorBrush(Colors.LightGreen);
+            
+            EmptyStateText.Visibility = Visibility.Collapsed;
+            if (_files.Count == 0) EmptyStateText.Visibility = Visibility.Visible;
+            if (_files.Count == 0) EmptyStateText.Text = "Drag files here or click Import";
+        }
+        else
+        {
+            // Inactive / Ended
+            StatusIndicator.Background = new SolidColorBrush(Color.FromRgb(80, 80, 80)); // Gray
+            StatusText.Text = state == SessionState.Ended ? "Session Ended - Files Wiped" : "Idle";
+            StatusText.Foreground = new SolidColorBrush(Colors.Gray);
+            
+            TxtInactivityTimer.Text = "00:00";
+            TxtInactivityTimer.Foreground = new SolidColorBrush(Color.FromRgb(60,60,60));
+            TxtSessionId.Text = "ID: -";
+            StatusMessage.Content = "Ready";
 
-        // Drag Drop Overlay
-        EmptyStateText.Visibility = isSessionActive ? Visibility.Collapsed : Visibility.Visible;
-        if (isSessionActive && _files.Count == 0) EmptyStateText.Text = "Drag files here or click Import";
-        else if (!isSessionActive) EmptyStateText.Text = "Start a session to use the workspace";
+            _files.Clear();
+            EmptyStateText.Visibility = Visibility.Visible;
+            EmptyStateText.Text = "Start a session to use the workspace";
+        }
+
+        RefreshLogs();
     }
 }
