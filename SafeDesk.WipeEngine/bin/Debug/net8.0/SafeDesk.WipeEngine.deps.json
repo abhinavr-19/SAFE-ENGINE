@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "SafeDesk.WipeEngine/1.0.0": {
+        "runtime": {
+          "SafeDesk.WipeEngine.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SafeDesk.WipeEngine/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

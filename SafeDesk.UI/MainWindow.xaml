@@ -1,15 +1,22 @@
 <Window x:Class="SafeDesk.UI.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SafeDesk" Height="600" Width="900"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="SafeDesk - Secure Session" Height="700" Width="1000"
         WindowStartupLocation="CenterScreen"
-        Background="#1E1E1E" Foreground="White">
+        Background="#1E1E1E" Foreground="White"
+        AllowDrop="True" Drop="Window_Drop">
+    
     <Window.Resources>
+        <!-- Styles (Previously Defined + New ones) -->
         <Style TargetType="Button">
             <Setter Property="Background" Value="#2D2D30"/>
             <Setter Property="Foreground" Value="White"/>
-            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Padding" Value="15,8"/>
             <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -20,11 +27,12 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="border" Property="Background" Value="#3E3E42"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#007ACC"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="border" Property="Background" Value="#111"/>
-                                <Setter Property="Foreground" Value="#444"/>
-                                <Setter TargetName="border" Property="BorderBrush" Value="#222"/>
+                                <Setter TargetName="border" Property="Background" Value="#252526"/>
+                                <Setter Property="Foreground" Value="#555"/>
+                                <Setter TargetName="border" Property="BorderBrush" Value="#333"/>
                                 <Setter Property="Cursor" Value="Arrow"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -32,38 +40,111 @@
                 </Setter.Value>
             </Setter>
         </Style>
-    </Window.Resources>
-    
-    <Grid>
-        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-            <!-- Header -->
-            <TextBlock Text="SafeDesk" FontSize="56" FontWeight="Bold" HorizontalAlignment="Center" Foreground="#FFFFFF" Margin="0,0,0,5">
-                <TextBlock.Effect>
-                    <DropShadowEffect Color="#007ACC" BlurRadius="25" ShadowDepth="0" Opacity="0.4"/>
-                </TextBlock.Effect>
-            </TextBlock>
-            <TextBlock Text="SECURE DOCUMENT ENVIRONMENT" FontSize="14" FontWeight="Bold" Foreground="#666" HorizontalAlignment="Center" Margin="0,0,0,50" LetterSpacing="2"/>
 
-            <!-- Status Indicator -->
-            <Border Background="#252526" Padding="20,15" CornerRadius="8" Margin="0,0,0,50" BorderBrush="#333" BorderThickness="1" HorizontalAlignment="Center">
-                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                     <Border Width="10" Height="10" CornerRadius="5" Background="#4CC71E" Margin="0,0,12,0">
-                        <Border.Effect>
-                            <DropShadowEffect Color="#4CC71E" BlurRadius="8" ShadowDepth="0" Opacity="0.8"/>
-                        </Border.Effect>
-                     </Border>
-                     <TextBlock Text="System Ready" FontSize="16" FontWeight="SemiBold" Foreground="#DDD"/>
-                 </StackPanel>
-            </Border>
-
-            <!-- Actions -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Content="Start Session" Width="160" Height="50" IsEnabled="False" Margin="15,0"/>
-                <Button Content="End Session" Width="160" Height="50" IsEnabled="False" Margin="15,0"/>
-            </StackPanel>
-        </StackPanel>
+        <Style TargetType="ListView">
+            <Setter Property="Background" Value="#252526"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
         
+        <Style TargetType="GridViewColumnHeader">
+            <Setter Property="Background" Value="#2D2D30"/>
+            <Setter Property="Foreground" Value="#CCC"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Header -->
+            <RowDefinition Height="Auto"/> <!-- Session Info -->
+            <RowDefinition Height="*"/>    <!-- File List -->
+            <RowDefinition Height="Auto"/> <!-- Footer -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <DockPanel>
+                <TextBlock Text="SafeDesk" FontSize="28" FontWeight="Bold" Foreground="White" VerticalAlignment="Center">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="#007ACC" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                    </TextBlock.Effect>
+                </TextBlock>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                     <Border x:Name="StatusIndicator" Width="12" Height="12" CornerRadius="6" Background="#555" Margin="0,0,10,0"/>
+                     <TextBlock x:Name="StatusText" Text="Idle - No Session" FontSize="14" Foreground="#888" VerticalAlignment="Center"/>
+                </StackPanel>
+            </DockPanel>
+            <Separator Background="#333" Margin="0,15,0,0"/>
+        </StackPanel>
+
+        <!-- Session Control & Info -->
+        <Grid Grid.Row="1" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Buttons -->
+            <StackPanel Orientation="Horizontal" Grid.Column="0">
+                <Button x:Name="BtnStartSession" Content="Start New Session" Click="BtnStartSession_Click" Background="#007ACC" BorderBrush="#005A9E"/>
+                <Button x:Name="BtnEndSession" Content="End Session" Click="BtnEndSession_Click" Margin="10,0,0,0" IsEnabled="False" Background="#C42B1C" BorderBrush="#8E1F15"/>
+            </StackPanel>
+
+            <!-- Timer & ID -->
+            <StackPanel Grid.Column="2" Orientation="Vertical" HorizontalAlignment="Right">
+                <TextBlock x:Name="TxtTimer" Text="00:00" FontSize="32" FontWeight="Bold" Foreground="#444" HorizontalAlignment="Right" FontFamily="Consolas, Courier New, monospace"/>
+                <TextBlock x:Name="TxtSessionId" Text="ID: -" FontSize="11" Foreground="#555" HorizontalAlignment="Right"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Workspace (Files) -->
+        <Grid Grid.Row="2" Background="#1E1E1E">
+            <Border BorderBrush="#333" BorderThickness="1" CornerRadius="4" Background="#252526" ClipToBounds="True">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Toolbar -->
+                        <RowDefinition Height="*"/>    <!-- List -->
+                    </Grid.RowDefinitions>
+
+                    <!-- File Toolbar -->
+                    <Border Background="#2D2D30" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="10">
+                        <DockPanel>
+                            <TextBlock Text="SECURE SESSION FILES" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
+                            <Button x:Name="BtnImportFile" Content="+ Import File" Click="BtnImportFile_Click" HorizontalAlignment="Right" Width="120" FontSize="12" Padding="8,4" IsEnabled="False"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- File List -->
+                    <ListView x:Name="FileList" Grid.Row="1" Foreground="#DDD" FontSize="14" Padding="5">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="File Name" Width="400" DisplayMemberBinding="{Binding FileName}"/>
+                                <GridViewColumn Header="Size (Bytes)" Width="150" DisplayMemberBinding="{Binding SizeBytes}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <!-- Drag & Drop Overlay (Visible when session active) -->
+                    <Border x:Name="DragDropOverlay" Grid.Row="1" Background="#111E1E1E" Visibility="Collapsed" IsHitTestVisible="False">
+                        <TextBlock Text="Drop Files Here" FontSize="24" FontWeight="Bold" Foreground="#333" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    
+                     <!-- Empty State -->
+                    <TextBlock x:Name="EmptyStateText" Grid.Row="1" Text="Start a session to import files" Foreground="#444" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="16"/>
+                </Grid>
+            </Border>
+        </Grid>
+
         <!-- Footer -->
-         <TextBlock Text="SafeDesk Security | Offline Mode | v0.1.0" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="20" Foreground="#333" FontSize="11"/>
+        <StatusBar Grid.Row="3" Background="Transparent" Foreground="#555" Margin="0,10,0,0" Padding="0">
+            <StatusBarItem Content="SafeDesk v0.1.0"/>
+            <StatusBarItem Content="|"/>
+            <StatusBarItem Content="Zero-Trust Architecture"/>
+            <StatusBarItem Content="|" Margin="5,0"/>
+            <StatusBarItem x:Name="StatusMessage" Content="Ready"/>
+        </StatusBar>
     </Grid>
 </Window>

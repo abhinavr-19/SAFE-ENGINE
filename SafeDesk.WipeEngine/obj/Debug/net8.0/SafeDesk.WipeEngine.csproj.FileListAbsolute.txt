@@ -1,0 +1,12 @@
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\bin\Debug\net8.0\SafeDesk.WipeEngine.deps.json
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\bin\Debug\net8.0\SafeDesk.WipeEngine.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\bin\Debug\net8.0\SafeDesk.WipeEngine.pdb
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.AssemblyInfoInputs.cache
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.AssemblyInfo.cs
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.csproj.CoreCompileInputs.cache
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.sourcelink.json
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\refint\SafeDesk.WipeEngine.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\SafeDesk.WipeEngine.pdb
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.WipeEngine\obj\Debug\net8.0\ref\SafeDesk.WipeEngine.dll
