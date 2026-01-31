@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SafeDesk.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3a42cd262fe431ff8c36c62bff72c9b19b53eed9")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c15d4ebb5d1f376edde0160c4f247e8ec29afef4")]
 [assembly: System.Reflection.AssemblyProductAttribute("SafeDesk.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SafeDesk.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -105,6 +105,43 @@ public partial class MainWindow : Window
         }
     }
 
+    private void BtnScan_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            StatusMessage.Content = "Scanning document...";
+            var file = _sessionManager.ScanDocument();
+            RefreshFileList();
+            MessageBox.Show($"Scanned document received: {file.FileName}", "Scan Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage.Content = "Ready";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Scan Error: {ex.Message}", "Device Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void BtnPrint_Click(object sender, RoutedEventArgs e)
+    {
+        if (FileList.SelectedItem is not SafeFile file)
+        {
+            MessageBox.Show("Please select a file from the list to print.", "Print Selection", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        try
+        {
+            StatusMessage.Content = $"Printing {file.FileName}...";
+            _sessionManager.PrintFile(file);
+            MessageBox.Show("File sent to the secure printer job queue.", "Print Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            StatusMessage.Content = "Ready";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Print Error: {ex.Message}", "Device Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void Window_Drop(object sender, DragEventArgs e)
     {
         if (_sessionManager == null || _sessionManager.CurrentSession == null || _sessionManager.CurrentSession.State != SessionState.Active)
@@ -179,6 +216,8 @@ public partial class MainWindow : Window
         BtnStartSession.IsEnabled = !isActive;
         BtnEndSession.IsEnabled = isActive;
         BtnImportFile.IsEnabled = isActive;
+        BtnPrint.IsEnabled = isActive;
+        BtnScan.IsEnabled = isActive;
 
         if (isActive)
         {

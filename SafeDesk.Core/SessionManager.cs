@@ -4,6 +4,7 @@ using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Timers;
+using SafeDesk.WipeEngine; // Added reference
 
 namespace SafeDesk.Core;
 
@@ -13,8 +14,9 @@ public class SessionManager
     private const string BaseSessionDir = @"C:\SafeDesk\sessions";
     private readonly System.Timers.Timer _lifecycleTimer;
     private const int InactivityLimitMinutes = 10;
-    
-    // Events for UI
+    private readonly ISecureWipeService _wipeService; // Injected
+    private readonly SecurePrintService _printService; // Phase 4 additions
+
     public event Action<SessionState>? StateChanged;
     public event Action<string>? LogUpdated;
     public event Action<TimeSpan>? TimeRemainingChanged;
@@ -23,21 +25,22 @@ public class SessionManager
 
     public SessionManager()
     {
+        // Init Services
+        _wipeService = new SecureWipeService();
+        _printService = new SecurePrintService();
+
         // 1. Ensure env is safe
         CoreInitializer.InitializeSystem();
 
-        // 2. Crash Recovery: Scan for orphans immediately
+        // 2. Crash Recovery
         CheckForOrphanSessions();
 
-        // 3. Setup Lifecycle Timer (runs every second to check inactivity)
+        // 3. Setup Lifecycle Timer
         _lifecycleTimer = new System.Timers.Timer(1000);
         _lifecycleTimer.Elapsed += LifecycleTimer_Elapsed;
         _lifecycleTimer.Start();
     }
 
-    /// <summary>
-    /// Phase 2 Recovery: Scans the session folder for any left-over data from crashes.
-    /// </summary>
     private void CheckForOrphanSessions()
     {
         try
@@ -47,7 +50,6 @@ public class SessionManager
             var subDirs = Directory.GetDirectories(BaseSessionDir);
             foreach (var dir in subDirs)
             {
-                // In Phase 2, ANY folder here at startup is an orphan.
                 string dirName = new DirectoryInfo(dir).Name;
                 AuditLogger.Log($"CRITICAL: Orphan session found: {dirName}");
                 
@@ -100,11 +102,7 @@ public class SessionManager
 
         if (remaining <= TimeSpan.Zero)
         {
-            // TIMEOUT
-             _lifecycleTimer.Stop(); // Stop timer to prevent re-entry
-             // We need to run this on a thread safe way if modifying state,
-             // but since we are in Core, we just change state. 
-             // UI needs to marshal to UI thread.
+             _lifecycleTimer.Stop(); 
              EndSession(SessionEndReason.InactivityTimeout);
              _lifecycleTimer.Start();
         }
@@ -123,11 +121,55 @@ public class SessionManager
         _currentSession.MarkEnded();
         
         // CLEANUP
+        // 1. Spool Cleanup (Best Effort)
+        SecurePrintService.CleanPrintSpool();
+        
+        // 2. Secure Wipe (Strict)
         PerformCleanup(_currentSession.FolderPath);
 
         AuditLogger.Log($"Session {_currentSession.Id} TERMINATED & CLEARED.");
         NotifyStateChange();
     }
+
+    // --- Phase 4 Additions ---
+
+    public void PrintFile(SafeFile file)
+    {
+        if (_currentSession == null || _currentSession.State != SessionState.Active)
+             throw new InvalidOperationException("No active session.");
+
+        // Validation: Ensure file is really in the session folder
+        if (!file.InternalPath.StartsWith(_currentSession.FolderPath, StringComparison.OrdinalIgnoreCase))
+             throw new UnauthorizedAccessException("Security Violation: Attempt to print file outside session.");
+
+        AuditLogger.Log($"Printing File: {file.FileName}...");
+        _printService.PrintFile(file.InternalPath);
+        _currentSession.RefreshActivity();
+    }
+
+    public SafeFile ScanDocument()
+    {
+        if (_currentSession == null || _currentSession.State != SessionState.Active)
+             throw new InvalidOperationException("No active session.");
+
+        // Simulate Scan Import
+        string scannedFile = ScanService.SimulateScan(_currentSession.FolderPath);
+        
+        var safeFile = new SafeFile
+        {
+            FileName = Path.GetFileName(scannedFile),
+            SizeBytes = new FileInfo(scannedFile).Length,
+            InternalPath = scannedFile
+        };
+        
+        _currentSession.AddFile(safeFile);
+        _currentSession.RefreshActivity();
+        
+        AuditLogger.Log($"Document Scanned: {safeFile.FileName}");
+        return safeFile;
+    }
+
+    // -------------------------
 
     private void PerformCleanup(string folderPath)
     {
@@ -135,15 +177,28 @@ public class SessionManager
         {
             if (Directory.Exists(folderPath))
             {
-                // In Phase 3, we will call WipeEngine here.
-                // In Phase 2, we do a strictly enforced recursive delete.
-                Directory.Delete(folderPath, recursive: true);
+                 AuditLogger.Log($"Initiating Secure Wipe for: {folderPath}");
+                 
+                 // Use the Wipe Engine
+                 var result = _wipeService.WipeSession(folderPath);
+
+                 if (result.Success)
+                 {
+                     AuditLogger.Log($"✅ Secure Wipe Complete. {result.FilesDestroyed} files overwritten and destroyed.");
+                 }
+                 else
+                 {
+                     AuditLogger.Log($"⚠️ Secure Wipe Warning: {result.Message}");
+                     foreach (var err in result.Errors)
+                     {
+                         AuditLogger.Log($" - {err}");
+                     }
+                 }
             }
         }
         catch (Exception ex)
         {
-            AuditLogger.Log($"Cleanup Error for {folderPath}: {ex.Message}");
-            // In a real scenario, we might retry or quarantine. 
+            AuditLogger.Log($"Cleanup/Wipe Error for {folderPath}: {ex.Message}");
         }
     }
 
@@ -154,10 +209,8 @@ public class SessionManager
             throw new InvalidOperationException("No active session.");
         }
 
-        // Notify activity
         _currentSession.RefreshActivity();
         
-        // ... (Logic from Phase 1, kept concise here)
         string fileName = Path.GetFileName(sourceFilePath);
         string destPath = Path.Combine(_currentSession.FolderPath, fileName);
         
@@ -170,7 +223,6 @@ public class SessionManager
 
         File.Copy(sourceFilePath, destPath);
 
-        // Audit Import
         AuditLogger.Log($"File Imported: {Path.GetFileName(destPath)} (Size: {new FileInfo(destPath).Length} bytes)");
 
         var safeFile = new SafeFile
@@ -189,7 +241,6 @@ public class SessionManager
         return _currentSession?.CurrentFiles ?? new List<SafeFile>();
     }
 
-    // Pass-through for UI to see logs
     public string GetAuditLogs() => AuditLogger.GetLogs();
 
     private void NotifyStateChange()
@@ -200,7 +251,6 @@ public class SessionManager
 
     private void ApplySecureAcl(DirectoryInfo dirInfo)
     {
-        // ... (Same Phase 1 Logic)
          try
         {
             DirectorySecurity security = dirInfo.GetAccessControl();

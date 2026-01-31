@@ -1,20 +1,19 @@
 namespace SafeDesk.WipeEngine;
 
+public class SecureWipeResult
+{
+    public bool Success { get; set; }
+    public int FilesDestroyed { get; set; }
+    public List<string> Errors { get; set; } = new List<string>();
+    public string Message { get; set; } = string.Empty;
+}
+
 public interface ISecureWipeService
 {
     /// <summary>
-    /// Securely wipes a file from the disk.
-    /// This is a placeholder for Phase 1 logic.
+    /// Securely destroys a session directory and all its contents.
     /// </summary>
-    /// <param name="filePath">Full path to the file.</param>
-    void WipeFile(string filePath);
-}
-
-public class SecureWipeServiceStub : ISecureWipeService
-{
-    public void WipeFile(string filePath)
-    {
-        // Not implemented in Phase 0
-        throw new System.NotImplementedException("Wipe logic is not implemented in Phase 0.");
-    }
+    /// <param name="sessionPath">Full path to the session folder.</param>
+    /// <returns>Result of the operation.</returns>
+    SecureWipeResult WipeSession(string sessionPath);
 }

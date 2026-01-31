@@ -1,0 +1,39 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "SafeDesk.Core/1.0.0": {
+        "dependencies": {
+          "SafeDesk.WipeEngine": "1.0.0"
+        },
+        "runtime": {
+          "SafeDesk.Core.dll": {}
+        }
+      },
+      "SafeDesk.WipeEngine/1.0.0": {
+        "runtime": {
+          "SafeDesk.WipeEngine.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "SafeDesk.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SafeDesk.WipeEngine/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

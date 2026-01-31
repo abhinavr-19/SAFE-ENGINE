@@ -136,7 +136,11 @@
                             <Border Background="#2D2D30" BorderBrush="#333" BorderThickness="0,0,0,1" Padding="10">
                                 <DockPanel>
                                     <TextBlock Text="ACTIVE SESSION FILES" FontWeight="Bold" Foreground="#888" VerticalAlignment="Center"/>
-                                    <Button x:Name="BtnImportFile" Content="+ Import File" Click="BtnImportFile_Click" HorizontalAlignment="Right" Width="120" FontSize="12" Padding="8,4" IsEnabled="False"/>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <Button x:Name="BtnScan" Content="📄 Scan Doc" Click="BtnScan_Click" Width="100" FontSize="12" Padding="8,4" IsEnabled="False" Margin="0,0,10,0" Background="#444"/>
+                                        <Button x:Name="BtnPrint" Content="🖨️ Print" Click="BtnPrint_Click" Width="100" FontSize="12" Padding="8,4" IsEnabled="False" Margin="0,0,10,0" Background="#444"/>
+                                        <Button x:Name="BtnImportFile" Content="+ Import File" Click="BtnImportFile_Click" Width="120" FontSize="12" Padding="8,4" IsEnabled="False"/>
+                                    </StackPanel>
                                 </DockPanel>
                             </Border>
 

@@ -1,0 +1,16 @@
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.csproj.AssemblyReference.cache
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.AssemblyInfoInputs.cache
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.AssemblyInfo.cs
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.csproj.CoreCompileInputs.cache
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.sourcelink.json
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\bin\Debug\net8.0-windows\SafeDesk.Core.deps.json
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\bin\Debug\net8.0-windows\SafeDesk.Core.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\bin\Debug\net8.0-windows\SafeDesk.Core.pdb
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\bin\Debug\net8.0-windows\SafeDesk.WipeEngine.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\bin\Debug\net8.0-windows\SafeDesk.WipeEngine.pdb
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.C157DAD8.Up2Date
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\refint\SafeDesk.Core.dll
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\SafeDesk.Core.pdb
+C:\Users\abhin\OneDrive\Documents-assets\Documents\Desktop\GENESEIS-2\SAFE-ENGINE\SafeDesk.Core\obj\Debug\net8.0-windows\ref\SafeDesk.Core.dll

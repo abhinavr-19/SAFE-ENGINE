@@ -3,34 +3,43 @@ setlocal
 
 echo [SafeDesk] Checking environment...
 
-:: Check if dotnet exists
+:: 1. Check if dotnet is specifically in Program Files (Preferred)
+if exist "C:\Program Files\dotnet\dotnet.exe" (
+    echo [INFO] Found .NET at C:\Program Files\dotnet
+    set "DOTNET_ROOT=C:\Program Files\dotnet"
+    goto FOUND
+)
+
+:: 2. Check if dotnet is in x86 Program Files
+if exist "C:\Program Files (x86)\dotnet\dotnet.exe" (
+    echo [INFO] Found .NET at C:\Program Files (x86)\dotnet
+    set "DOTNET_ROOT=C:\Program Files (x86)\dotnet"
+    goto FOUND
+)
+
+:: 3. Check if dotnet is just in the PATH
 where dotnet >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] .NET is not found in your PATH.
-    echo Please install the .NET 8 SDK from: https://dotnet.microsoft.com/download/dotnet/8.0
-    pause
-    exit /b 1
+if %errorlevel% equ 0 (
+    echo [INFO] .NET found in PATH.
+    goto FOUND_IN_PATH
 )
 
-:: Check for SDKs
-for /f "tokens=*" %%i in ('dotnet --list-sdks') do set SDK_FOUND=%%i
-if "%SDK_FOUND%"=="" (
-    echo [ERROR] No .NET SDKs were found. You only have the Runtime installed.
-    echo You specifically need the .NET 8.0 SDK to build and run this application.
-    echo.
-    echo Current dotnet version:
-    dotnet --version
-    echo.
-    echo Please download "PC -> Install .NET SDK" from:
-    echo https://dotnet.microsoft.com/download/dotnet/8.0
-    pause
-    exit /b 1
-)
+echo [ERROR] .NET is not found in your PATH or standard locations.
+echo Please install the .NET 8 SDK from: https://dotnet.microsoft.com/download/dotnet/8.0
+pause
+exit /b 1
 
-echo [SUCCESS] .NET SDK found. Building and running SafeDesk...
+:FOUND
+:: Add to PATH safely outside of IF blocks to avoid syntax errors with parentheses
+set "PATH=%DOTNET_ROOT%;%PATH%"
+
+:FOUND_IN_PATH
+echo [SUCCESS] Launching SafeDesk...
 dotnet run --project SafeDesk.UI
 
 if %errorlevel% neq 0 (
-    echo [ERROR] Application crashed or failed to build.
+    echo.
+    echo [ERROR] Application crashed or failed to launch.
+    echo If it says "not recognized", the SDK might be missing.
     pause
 )
